@@ -20,6 +20,7 @@ def imshow(inp, title=None):
         plt.title(title)
     plt.pause(0.001)  # pause a bit so that plots are updated
 
+
 def classify_Image(c_dict):
     for key in c_dict:
         #create a directory
@@ -34,16 +35,16 @@ def classify_Image(c_dict):
             
 #               print(imgs_path)
 
-def extract_Feature(model, device):
+def extract_Feature(model, device, dataloaders):
     output_list = []
     img_tensor = None
-    my_model = my_model.to(device)
+    model = model.to(device)
     with torch.no_grad():
         new_iter = iter(dataloaders)
         counter = 0
         for inputs, classes in new_iter:
             inputs = inputs.to(device)
-            output = my_model(inputs)
+            output = model(inputs)
             if device.type == 'cuda':
                 output = output.cpu()
             output = output.numpy().reshape(-1)
@@ -79,7 +80,13 @@ if __name__ == '__main__':
     
     # Generate classify table
     classify_table = {}
-    kmeans = KMeans(n_clusters=4, random_state=1).fit(output_list)
+
+    img_tensor, output_list = extract_Feature(my_model, device, dataloaders)
+
+    # Iteration for KMeans score
+    for i in range(0, len(output_list) / 10):
+    	kmeans = KMeans(n_clusters=i, random_state=1).fit(output_list)
+    	print("Get kmeans distance: ", kmeans.inertia_)
     labels = kmeans.labels_
     # print(kmeans.labels_)
     for i in range(len(labels)):
