@@ -36,24 +36,28 @@ def classify_Image(c_dict):
 #               print(imgs_path)
 
 def extract_Feature(model, device, dataloaders):
-    output_list = []
+    output_list = None
     img_tensor = None
     model = model.to(device)
     with torch.no_grad():
         new_iter = iter(dataloaders)
         counter = 0
         for inputs, classes in new_iter:
-            inputs = inputs.to(device)
-            output = model(inputs)
+            inputs_tensor = inputs.to(device)
+            output = model(inputs_tensor)
             if device.type == 'cuda':
                 output = output.cpu()
-            output = output.numpy().reshape(-1)
-            output_list.append(output)
-            if img_tensor is None:
-                img_tensor = inputs
+            output = output.numpy().reshape((output.shape[0], -1))
+            if output_list is None:
+                output_list = output
             else:
-                img_tensor = torch.cat((img_tensor, inputs), 0)
-                img_tensor = img_tensor.reshape([len(output_list), *(inputs.shape[1:])])
+                output_list = np.vstack((output_list, output))
+            print("Finishing one batch: current stacked shape", output_list.shape)
+            # if img_tensor is None:
+            #     img_tensor = inputs
+            # else:
+            #     img_tensor = torch.cat((img_tensor, inputs), 0)
+            #     img_tensor = img_tensor.reshape([len(output_list), *(inputs.shape[1:])])
     return img_tensor, output_list
 
 
@@ -75,7 +79,7 @@ if __name__ == '__main__':
 
     # Define image datasets, will transform to cli format in the future
     image_datasets = datasets.ImageFolder(os.path.join(os.getcwd(), 'dataset'), data_transforms)
-    dataloaders = torch.utils.data.DataLoader(image_datasets, batch_size=1,
+    dataloaders = torch.utils.data.DataLoader(image_datasets, batch_size=50,
                                                 shuffle=True, num_workers=4)
     
     # Generate classify table
@@ -84,9 +88,10 @@ if __name__ == '__main__':
     img_tensor, output_list = extract_Feature(my_model, device, dataloaders)
 
     # Iteration for KMeans score
-    for i in range(0, len(output_list) / 10):
-    	kmeans = KMeans(n_clusters=i, random_state=1).fit(output_list)
-    	print("Get kmeans distance: ", kmeans.inertia_)
+    # for i in range(5, output_list.shape[0] // 10):
+
+    kmeans = KMeans(n_clusters=100, random_state=1).fit(output_list)
+    print("Get kmeans distance: ", kmeans.inertia_)
     labels = kmeans.labels_
     # print(kmeans.labels_)
     for i in range(len(labels)):
@@ -97,9 +102,9 @@ if __name__ == '__main__':
     print(classify_table)
     print(kmeans.inertia_)
 
-    # IO operation for copying images to other folder
+    # # IO operation for copying images to other folder
     classify_Image(classify_table)
     
-    # Show some sample image
-    out = torchvision.utils.make_grid(img_tensor.cpu())
-    imshow(out)
+    # # Show some sample image
+    # out = torchvision.utils.make_grid(img_tensor.cpu())
+    # imshow(out)
